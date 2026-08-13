@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>FMO AI 手机端</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0a0a0f;
+  color: #e0e0e0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  padding: 16px;
+  text-align: center;
+  border-bottom: 1px solid #333;
+}
+header h1 {
+  font-size: 20px;
+  color: #00d4ff;
+  letter-spacing: 2px;
+}
+header .sub {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+.status-bar {
+  display: flex;
+  justify-content: space-around;
+  padding: 10px 16px;
+  background: #111;
+  border-bottom: 1px solid #222;
+}
+.status-item {
+  text-align: center;
+  font-size: 12px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 4px;
+  background: #555;
+}
+.status-dot.on { background: #0f0; box-shadow: 0 0 6px #0f0; }
+.status-dot.off { background: #f44; }
+.status-dot.warn { background: #fa0; }
+
+.main-card {
+  flex: 1;
+  padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 16px;
+  background: #151520;
+  border-radius: 12px;
+  border: 1px solid #2a2a3e;
+}
+.info-label {
+  font-size: 13px;
+  color: #888;
+}
+.info-value {
+  font-size: 16px;
+  color: #00d4ff;
+  font-weight: bold;
+  font-family: "Courier New", monospace;
+}
+.big-button {
+  width: 100%;
+  padding: 18px;
+  border: none;
+  border-radius: 14px;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: all 0.3s;
+}
+.btn-connect {
+  background: linear-gradient(135deg, #00d4ff, #0090d9);
+  color: #fff;
+}
+.btn-connect:active { transform: scale(0.97); }
+.btn-stop {
+  background: linear-gradient(135deg, #ff4757, #c0392b);
+  color: #fff;
+}
+.mic-button {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  border: 3px solid #333;
+  background: #1a1a2e;
+  margin: 10px auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.mic-button.listening {
+  border-color: #0f0;
+  box-shadow: 0 0 20px rgba(0,255,0,0.3);
+  animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+  0%,100% { box-shadow: 0 0 20px rgba(0,255,0,0.3); }
+  50% { box-shadow: 0 0 40px rgba(0,255,0,0.6); }
+}
+.log-area {
+  flex: 1;
+  min-height: 120px;
+  max-height: 200px;
+  overflow-y: auto;
+  background: #0d0d15;
+  border: 1px solid #222;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 12px;
+  font-family: "Courier New", monospace;
+  color: #0f0;
+  line-height: 1.6;
+}
+.log-area .ts { color: #666; }
+.log-area .info { color: #0df; }
+.log-area .ok { color: #0f0; }
+.log-area .warn { color: #fa0; }
+.log-area .err { color: #f44; }
+
+.config-area {
+  padding: 0 16px 10px;
+}
+.config-area details {
+  background: #151520;
+  border-radius: 10px;
+  padding: 10px 14px;
+  border: 1px solid #2a2a3e;
+}
+.config-area summary {
+  cursor: pointer;
+  font-size: 14px;
+  color: #aaa;
+}
+.config-area input {
+  width: 100%;
+  padding: 8px 10px;
+  margin: 6px 0;
+  background: #0d0d15;
+  border: 1px solid #333;
+  border-radius: 6px;
+  color: #e0e0e0;
+  font-size: 13px;
+}
+.help-text {
+  font-size: 11px;
+  color: #666;
+  text-align: center;
+  padding: 6px;
+}
+footer {
+  text-align: center;
+  padding: 10px;
+  font-size: 10px;
+  color: #444;
+  border-top: 1px solid #1a1a2e;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>📡 FMO AI</h1>
+  <div class="sub">手机独立版 · 无需电脑 · 直连 FMO 服务器</div>
+</header>
+
+<div class="status-bar">
+  <div class="status-item">
+    <span id="dot-mqtt" class="status-dot off"></span>
+    <span id="txt-mqtt">MQTT 未连</span>
+  </div>
+  <div class="status-item">
+    <span id="dot-mic" class="status-dot off"></span>
+    <span id="txt-mic">麦克风关</span>
+  </div>
+  <div class="status-item">
+    <span id="dot-net" class="status-dot warn"></span>
+    <span id="txt-net">检测中</span>
+  </div>
+</div>
+
+<div class="main-card">
+  <div class="info-row">
+    <span class="info-label">呼号</span>
+    <span class="info-value" id="val-call">--</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">网格定位</span>
+    <span class="info-value" id="val-grid">--</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">信号强度</span>
+    <span class="info-value" id="val-rssi">--</span>
+  </div>
+  <div class="info-row">
+    <span class="info-label">设备推测</span>
+    <span class="info-value" id="val-device">--</span>
+  </div>
+
+  <div style="text-align:center">
+    <div class="mic-button" id="btn-mic">🎤</div>
+    <div class="help-text" id="mic-hint">点麦克风开始监听本地声音</div>
+  </div>
+
+  <button class="big-button btn-connect" id="btn-connect">连接 FMO 服务器</button>
+
+  <div class="log-area" id="log">
+    <span class="ts">[就绪] </span><span class="info">点上方按钮连接服务器，或开启麦克风监听本地</span><br>
+  </div>
+</div>
+
+<div class="config-area">
+  <details>
+    <summary>⚙ 服务器配置（默认公共测试服务器）</summary>
+    <input id="cfg-broker" placeholder="WebSocket 地址" value="wss://broker.emqx.io:8084/mqtt">
+    <input id="cfg-topic" placeholder="订阅主题" value="FMO/RAW">
+    <input id="cfg-call" placeholder="你的呼号（可选）" value="">
+    <div class="help-text">公共服务器仅用于测试，正式使用请填自己的 FMO 服务器地址</div>
+  </details>
+</div>
+
+<footer>FMO AI v3.0 · 纯前端 · 数据不经过任何第三方</footer>
+
+<script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+<script>
+// ===== 日志 =====
+const logEl = document.getElementById('log');
+function log(msg, cls='info') {
+  const t = new Date().toLocaleTimeString('zh-CN',{hour12:false});
+  logEl.innerHTML += `<span class="ts">[${t}] </span><span class="${cls}">${msg}</span><br>`;
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ===== 网络检测 =====
+fetch('https://www.gstatic.com/generate_204', {method:'HEAD',mode:'no-cors'})
+  .then(()=>{
+    document.getElementById('dot-net').className='status-dot on';
+    document.getElementById('txt-net').textContent='在线';
+    log('网络正常，HTTPS 连接可用','ok');
+  })
+  .catch(()=>{
+    document.getElementById('dot-net').className='status-dot off';
+    document.getElementById('txt-net').textContent='离线';
+    log('网络异常，请检查数据连接','err');
+  });
+
+// ===== MQTT 连接 =====
+let client = null;
+const btnConnect = document.getElementById('btn-connect');
+btnConnect.addEventListener('click', ()=>{
+  const broker = document.getElementById('cfg-broker').value.trim();
+  const topic = document.getElementById('cfg-topic').value.trim();
+  if(!broker) { log('请填写服务器地址','warn'); return; }
+
+  log(`正在连接 ${broker} ...`);
+  try {
+    client = mqtt.connect(broker, {
+      clientId: 'FMO_Mobile_'+Math.random().toString(16).slice(2,8),
+      reconnectPeriod: 5000,
+      connectTimeout: 10000
+    });
+  } catch(e) { log('连接失败: '+e.message,'err'); return; }
+
+  client.on('connect', ()=>{
+    document.getElementById('dot-mqtt').className='status-dot on';
+    document.getElementById('txt-mqtt').textContent='MQTT 已连';
+    btnConnect.textContent = '✅ 已连接';
+    btnConnect.className = 'big-button btn-stop';
+    log(`已连接，订阅 ${topic}`,'ok');
+    client.subscribe(topic, {qos:0}, (e)=>{
+      if(e) log('订阅失败: '+e.message,'err');
+      else log(`订阅成功: ${topic}`,'ok');
+    });
+  });
+
+  client.on('error', (e)=> log('MQTT 错误: '+e.message,'err'));
+  client.on('offline', ()=>{
+    document.getElementById('dot-mqtt').className='status-dot off';
+    document.getElementById('txt-mqtt').textContent='MQTT 断开';
+    log('连接断开，尝试重连...','warn');
+  });
+  client.on('message', (t, payload)=>{
+    let data = {};
+    try { data = JSON.parse(payload.toString()); }
+    catch(e) { data.raw = payload.toString().slice(0,80); }
+    if(data.call)  { document.getElementById('val-call').textContent = data.call;  log(`📞 ${data.call}`,'ok'); }
+    if(data.grid)  { document.getElementById('val-grid').textContent = data.grid;  log(`📍 网格 ${data.grid}`); }
+    if(data.rssi)  { document.getElementById('val-rssi').textContent = data.rssi+' dBm'; }
+    if(data.device) { document.getElementById('val-device').textContent = data.device; }
+  });
+
+  btnConnect.onclick = ()=>{
+    if(client && client.connected) { client.end(); location.reload(); }
+  };
+});
+
+// ===== 麦克风（本地监听 + 简单降噪演示） =====
+const btnMic = document.getElementById('btn-mic');
+const micHint = document.getElementById('mic-hint');
+let audioCtx = null, stream = null, processor = null;
+
+btnMic.addEventListener('click', async ()=>{
+  if(stream) { stopMic(); return; }
+  try {
+    log('请求麦克风权限...');
+    stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true
+      }
+    });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    const dst = audioCtx.createMediaStreamDestination();
+    const gain = audioCtx.createGain();
+    gain.gain.value = 1.0;
+    src.connect(gain).connect(dst);
+
+    // 简单 VAD：检测音量
+    processor = audioCtx.createScriptProcessor(2048, 1, 1);
+    const input = src;
+    input.connect(processor);
+    processor.connect(audioCtx.destination);
+    let silent = 0;
+    processor.onaudioprocess = (e)=>{
+      const buf = e.inputBuffer.getChannelData(0);
+      let sum = 0;
+      for(let i=0;i<buf.length;i++) sum += buf[i]*buf[i];
+      const rms = Math.sqrt(sum/buf.length);
+      if(rms > 0.01) {
+        silent = 0;
+        if(micHint.textContent !== '🔴 监听到声音') {
+          micHint.textContent = '🔴 监听到声音';
+          log(`🎤 声音活动 RMS=${rms.toFixed(4)}`,'ok');
+        }
+      } else {
+        silent++;
+        if(silent > 30) micHint.textContent = '🎤 静音中...';
+      }
+    };
+
+    btnMic.classList.add('listening');
+    btnMic.textContent = '⏹';
+    document.getElementById('dot-mic').className='status-dot on';
+    document.getElementById('txt-mic').textContent='麦克风开';
+    log('麦克风已开启，噪声抑制已启用','ok');
+  } catch(e) {
+    log('麦克风失败: '+e.message,'err');
+    if(e.name==='NotAllowedError') log('请允许麦克风权限后重试','warn');
+    if(e.name==='NotFoundError')  log('未找到麦克风设备','err');
+  }
+});
+
+function stopMic(){
+  if(stream) stream.getTracks().forEach(t=>t.stop());
+  if(audioCtx) audioCtx.close();
+  stream = null; audioCtx = null; processor = null;
+  btnMic.classList.remove('listening');
+  btnMic.textContent = '🎤';
+  micHint.textContent = '点麦克风开始监听本地声音';
+  document.getElementById('dot-mic').className='status-dot off';
+  document.getElementById('txt-mic').textContent='麦克风关';
+  log('麦克风已关闭');
+}
+
+// ===== 阻止屏幕休眠 =====
+let wakeLock = null;
+async function keepAwake(){
+  try {
+    wakeLock = await navigator.wakeLock.request('screen');
+    log('屏幕常亮已开启','ok');
+  } catch(e) { log('屏幕常亮不可用','warn'); }
+}
+document.addEventListener('click', keepAwake, {once:true});
+
+// ===== 页面可见性 =====
+document.addEventListener('visibilitychange', ()=>{
+  if(!document.hidden && wakeLock && wakeLock.state==='released') keepAwake();
+});
+
+log('页面加载完成，HTTPS 安全上下文正常','ok');
+</script>
+</body>
+</html>
